@@ -18,7 +18,7 @@
  * Is a node of a one-way linked list
  * */
 typedef struct _data_line_node_s {
-    int generated;
+    int calculated;         // informuje czy był w plikach (0) czy został wyliczony (1)
 
     double m_barionowa;
     double m_grawitacyjna;
@@ -46,7 +46,7 @@ appendLine(DataLineNode **head_ref, double m_barionowa, double m_grawitacyjna, d
     DataLineNode *current_node = *head_ref;
 
     calculated->next = NULL;
-    calculated->generated = 0;
+    calculated->calculated = 0;
     calculated->m_barionowa = m_barionowa;
     calculated->m_grawitacyjna = m_grawitacyjna;
     calculated->m_pedu = m_pedu;
@@ -115,6 +115,11 @@ typedef struct _data_line_pair {
     double bar_m_queried;
 } DataLinePair;
 
+/**
+ * Finds the closest bigger-smaller pair for queried baryon mass
+ * @sidefects Finishes program with EXIT_FAILIURE in case no smaller-bigger pair is not found in provided data
+ * @returns {DataLinePair}
+ * */
 DataLinePair *findClosestPair(DataLineNode **head_ref, double bar_m_query) {
     DataLineNode *current_node = *head_ref;
 
@@ -155,7 +160,11 @@ DataLinePair *findClosestPair(DataLineNode **head_ref, double bar_m_query) {
     return linePair;
 }
 
-double liniowaZaleznosc(double desirable_y, double min_y, double max_y, double min_x, double max_x) {
+/**
+ * Calculates a value for a certain 'y' based on a linear relation
+ * @returns {double} - calculated value
+ * */
+double linearRelation(double desired_y, double min_y, double max_y, double min_x, double max_x) {
 
     if (min_x == max_x) return min_x;
 
@@ -168,58 +177,73 @@ double liniowaZaleznosc(double desirable_y, double min_y, double max_y, double m
     b1 = ((min_y * max_x) - (max_y * min_x));
     b = b1 / a2;
 
-    solution = (desirable_y - b) / a;
+    solution = (desired_y - b) / a;
     return solution;
 }
 
-DataLineNode *wyliczWierszLiniowo(DataLinePair *paraWierszy) {
-    DataLineNode *wyliczony = malloc(sizeof(DataLineNode));
-    DataLineNode *mniejszy = paraWierszy->smaller;
-    DataLineNode *wiekszy = paraWierszy->bigger;
+/**
+ * Calculates all values of a DataLine for a certain baryon mass based on a linear relation of a bigger-smaller pair provided
+ * @returns {DataLineNode} - calculated DataLine
+ * */
+DataLineNode *calculateDataLineLinearly(DataLinePair *linePair) {
+    DataLineNode *calculated = malloc(sizeof(DataLineNode));
+    DataLineNode *smaller = linePair->smaller;
+    DataLineNode *bigger = linePair->bigger;
 
-    wyliczony->next = NULL;
-    wyliczony->generated = 1;
-    wyliczony->m_barionowa = paraWierszy->bar_m_queried;
-    wyliczony->m_grawitacyjna = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                                 mniejszy->m_grawitacyjna, wiekszy->m_grawitacyjna);
-    wyliczony->m_pedu = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                         mniejszy->m_pedu, wiekszy->m_pedu);
-    wyliczony->R = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa, mniejszy->R,
-                                    wiekszy->R);
-    wyliczony->omega = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                        mniejszy->omega, wiekszy->omega);
-    wyliczony->P = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa, mniejszy->P,
-                                    wiekszy->P);
-    wyliczony->Ro_B = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                       mniejszy->Ro_B, wiekszy->Ro_B);
-    wyliczony->N_B = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                      mniejszy->N_B, wiekszy->N_B);
-    wyliczony->entalpia = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                           mniejszy->entalpia, wiekszy->entalpia);
-    wyliczony->r_eq = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                       mniejszy->r_eq, wiekszy->r_eq);
-    wyliczony->s_r = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                      mniejszy->s_r, wiekszy->s_r);
-    wyliczony->s_e = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
-                                      mniejszy->s_e, wiekszy->s_e);
+    calculated->next = NULL;
+    calculated->calculated = 1;
+    calculated->m_barionowa = linePair->bar_m_queried;
+    calculated->m_grawitacyjna = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                               smaller->m_grawitacyjna, bigger->m_grawitacyjna);
+    calculated->m_pedu = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                       smaller->m_pedu, bigger->m_pedu);
+    calculated->R = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa, smaller->R,
+                                  bigger->R);
+    calculated->omega = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                      smaller->omega, bigger->omega);
+    calculated->P = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa, smaller->P,
+                                  bigger->P);
+    calculated->Ro_B = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                     smaller->Ro_B, bigger->Ro_B);
+    calculated->N_B = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                    smaller->N_B, bigger->N_B);
+    calculated->entalpia = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                         smaller->entalpia, bigger->entalpia);
+    calculated->r_eq = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                     smaller->r_eq, bigger->r_eq);
+    calculated->s_r = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                    smaller->s_r, bigger->s_r);
+    calculated->s_e = linearRelation(calculated->m_barionowa, smaller->m_barionowa, bigger->m_barionowa,
+                                    smaller->s_e, bigger->s_e);
 
-    return wyliczony;
+    return calculated;
 }
 
-DataLineNode *findEquivalent(DataLineNode **head_ref, double m_bar_szukana) {
-    DataLinePair *paraWierszy = findClosestPair(head_ref, m_bar_szukana);
-    return wyliczWierszLiniowo(paraWierszy);
+/**
+ * Calculates a DataLine based on provided baryon mass not found in data
+ * @returns {DataLineNode} - calculated DataLine
+ * */
+DataLineNode *findEquivalent(DataLineNode **head_ref, double bar_m_query) {
+    DataLinePair *paraWierszy = findClosestPair(head_ref, bar_m_query);
+    return calculateDataLineLinearly(paraWierszy);
 }
 
-DataLineNode *findAnswer(DataLineNode **head_ref, double m_bar_szukana) {
-    DataLineNode *ans = findByBaryonMass(head_ref, m_bar_szukana);
+/**
+ * Finds or calculates a DataLine by baryon mass and provided data
+ * @returns {DataLineNode}
+ * */
+DataLineNode *findAnswer(DataLineNode **head_ref, double bar_m_query) {
+    DataLineNode *ans = findByBaryonMass(head_ref, bar_m_query);
     if (ans != NULL) return ans;
-    return findEquivalent(head_ref, m_bar_szukana);
+    return findEquivalent(head_ref, bar_m_query);
 }
 
 /** Wczytywanie pliku */
+
+/**
+ * Parses a string of comma separated floating-point values and appends the data to provided DataLine list
+ * */
 void parseLine(const char *src, DataLineNode **head_ref) {
-    char *bufor[LINE_BUFFER];
     char *line = malloc(strlen(src) + 1);
     strcpy(line, src);
 
@@ -275,6 +299,10 @@ void parseLine(const char *src, DataLineNode **head_ref) {
     appendLine(head_ref, m_barionowa, m_grawitacyjna, m_pedu, R, omega, P, Ro_B, N_B, entalpia, r_eq, s_r, s_e);
 }
 
+/**
+ * Loads provided data from file to an in memory list
+ * @returns {DataLineNode} - loaded DataLine list
+ * */
 DataLineNode *loadData(const char *fileName) {
     FILE *fp;
     char line[LINE_BUFFER];
@@ -294,7 +322,9 @@ DataLineNode *loadData(const char *fileName) {
     return dataList;
 }
 
-/** Wypisywanie poszukiwanych danych */
+/**
+ * Prints provided DataLineNode as a line of comma separated floating-point values
+ * */
 void printCalculatedData(DataLineNode *calcData) {
     printf("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n", calcData->m_barionowa,
            calcData->m_grawitacyjna, calcData->m_pedu, calcData->R, calcData->omega, calcData->P, calcData->Ro_B,
@@ -302,7 +332,7 @@ void printCalculatedData(DataLineNode *calcData) {
 }
 
 int main(int argc, char **argv) {
-    double m_barionowa;
+    double baryon_mass;
     char *fileName;
 
     if (argc < 2) {
@@ -313,19 +343,19 @@ int main(int argc, char **argv) {
         fileName = argv[1];
     }
 
-    DataLineNode *lista_wierszy = loadData(fileName);
+    DataLineNode *line_list = loadData(fileName);
 
     if (argc < 3) {
         printf("Podaj mase barionowa: ");
-        scanf("%f", &m_barionowa);
+        scanf("%f", &baryon_mass);
     } else {
-        m_barionowa = atof(argv[2]);
+        baryon_mass = atof(argv[2]);
     }
 
-    DataLineNode *answer = findAnswer(&lista_wierszy, m_barionowa);
+    DataLineNode *answer = findAnswer(&line_list, baryon_mass);
     printCalculatedData(answer);
 
-    if (answer->generated == 1) free(answer);
-    destroyList(&lista_wierszy);
+    if (answer->calculated == 1) free(answer);
+    destroyList(&line_list);
     return 0;
 }
