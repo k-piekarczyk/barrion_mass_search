@@ -7,11 +7,17 @@
 #include <math.h>
 #include <string.h>
 
-#define BUFOR_ROZNICY 99999999
-#define BUFOR_LINI 256
+#define DIFF_BUFFER 99999999
+#define LINE_BUFFER 256
 
 /** Definicja listy wierszy */
-typedef struct _wiersz_node {
+
+/**
+ * Type: DataLineNode
+ * Represents a line of data
+ * Is a node of a one-way linked list
+ * */
+typedef struct _data_line_node_s {
     int generated;
 
     double m_barionowa;
@@ -27,44 +33,51 @@ typedef struct _wiersz_node {
     double s_r;             // stosunek promieni
     double s_e;             // stosunek energii
 
-    struct _wiersz_node *next;
-} WierszNode;
+    struct _data_line_node_s *next;
+} DataLineNode;
 
+/**
+ * Appends a line to DataLine list
+ * */
 void
-appendWiersz(WierszNode **head_ref, double m_barionowa, double m_grawitacyjna, double m_pedu, double R, double omega,
-             double P, double Ro_B, double N_B, double entalpia, double r_eq, double s_r, double s_e) {
-    WierszNode *wyliczony = (WierszNode *) malloc(sizeof(WierszNode));
-    WierszNode *current_node = *head_ref;
+appendLine(DataLineNode **head_ref, double m_barionowa, double m_grawitacyjna, double m_pedu, double R, double omega,
+           double P, double Ro_B, double N_B, double entalpia, double r_eq, double s_r, double s_e) {
+    DataLineNode *calculated = (DataLineNode *) malloc(sizeof(DataLineNode));
+    DataLineNode *current_node = *head_ref;
 
-    wyliczony->next = NULL;
-    wyliczony->generated = 0;
-    wyliczony->m_barionowa = m_barionowa;
-    wyliczony->m_grawitacyjna = m_grawitacyjna;
-    wyliczony->m_pedu = m_pedu;
-    wyliczony->R = R;
-    wyliczony->omega = omega;
-    wyliczony->P = P;
-    wyliczony->Ro_B = Ro_B;
-    wyliczony->N_B = N_B;
-    wyliczony->entalpia = entalpia;
-    wyliczony->r_eq = r_eq;
-    wyliczony->s_r = s_r;
-    wyliczony->s_e = s_e;
+    calculated->next = NULL;
+    calculated->generated = 0;
+    calculated->m_barionowa = m_barionowa;
+    calculated->m_grawitacyjna = m_grawitacyjna;
+    calculated->m_pedu = m_pedu;
+    calculated->R = R;
+    calculated->omega = omega;
+    calculated->P = P;
+    calculated->Ro_B = Ro_B;
+    calculated->N_B = N_B;
+    calculated->entalpia = entalpia;
+    calculated->r_eq = r_eq;
+    calculated->s_r = s_r;
+    calculated->s_e = s_e;
 
 
     if (*head_ref == NULL) {
-        *head_ref = wyliczony;
+        *head_ref = calculated;
         return;
     }
 
     while (current_node->next != NULL)
         current_node = current_node->next;
 
-    current_node->next = wyliczony;
+    current_node->next = calculated;
 }
 
-WierszNode *findByMBar(WierszNode **head_ref, double m_bar) {
-    WierszNode *current_node = *head_ref;
+/**
+ * Searches DataLine list for a Node by baryon mass
+ * @returns {DataLineNode or NULL} - Node containing data or NULL
+ * */
+DataLineNode *findByBaryonMass(DataLineNode **head_ref, double m_bar) {
+    DataLineNode *current_node = *head_ref;
 
     while (current_node != NULL) {
         if (current_node->m_barionowa == m_bar) return current_node;
@@ -74,9 +87,12 @@ WierszNode *findByMBar(WierszNode **head_ref, double m_bar) {
     return NULL;
 }
 
-void destroyList(WierszNode **head_ref) {
-    WierszNode *current_node = *head_ref;
-    WierszNode *next;
+/**
+ * Frees a list memory
+ * */
+void destroyList(DataLineNode **head_ref) {
+    DataLineNode *current_node = *head_ref;
+    DataLineNode *next;
 
     while (current_node != NULL) {
         next = current_node->next;
@@ -88,50 +104,55 @@ void destroyList(WierszNode **head_ref) {
 }
 
 /** Przeszukiwanie najbliższych */
-typedef struct _para_wierszy {
-    WierszNode *mniejszy;
-    WierszNode *wiekszy;
-    double m_bar_szukana;
-} ParaWierszy;
 
-ParaWierszy *znajdzNajblizszaPare(WierszNode **head_ref, double m_bar_szukana) {
-    WierszNode *obecny_wezel = *head_ref;
+/**
+ * Type: DataLinePair
+ * Represents a pair of DataLineNodes
+ * */
+typedef struct _data_line_pair {
+    DataLineNode *smaller;
+    DataLineNode *bigger;
+    double bar_m_queried;
+} DataLinePair;
 
-    WierszNode *mniejsza = NULL;
-    WierszNode *wieksza = NULL;
-    double min_diff = BUFOR_ROZNICY;
-    double max_diff = BUFOR_ROZNICY;
+DataLinePair *findClosestPair(DataLineNode **head_ref, double bar_m_query) {
+    DataLineNode *current_node = *head_ref;
+
+    DataLineNode *smaller = NULL;
+    DataLineNode *bigger = NULL;
+    double min_diff = DIFF_BUFFER;
+    double max_diff = DIFF_BUFFER;
     double diff;
 
 
-    while (obecny_wezel != NULL) {
-        diff = fabs(obecny_wezel->m_barionowa - m_bar_szukana);
+    while (current_node != NULL) {
+        diff = fabs(current_node->m_barionowa - bar_m_query);
 
-        if ((obecny_wezel->m_barionowa < m_bar_szukana) && (diff < min_diff)) { // Szukanie mniejszej
+        if ((current_node->m_barionowa < bar_m_query) && (diff < min_diff)) { // Szukanie mniejszej
             min_diff = diff;
-            mniejsza = obecny_wezel;
-        } else if ((obecny_wezel->m_barionowa > m_bar_szukana) && (diff < max_diff)) { // Szukanie wiekszej
+            smaller = current_node;
+        } else if ((current_node->m_barionowa > bar_m_query) && (diff < max_diff)) { // Szukanie wiekszej
             max_diff = diff;
-            wieksza = obecny_wezel;
+            bigger = current_node;
         }
 
-        obecny_wezel = obecny_wezel->next;
+        current_node = current_node->next;
     }
 
-    if (mniejsza == NULL) {
-        fprintf(stderr, "Nie znaleziono wiersza z mniejsza masa barionowa niz: %f\n", m_bar_szukana);
+    if (smaller == NULL) {
+        fprintf(stderr, "Nie znaleziono wiersza z mniejsza masa barionowa niz: %f\n", bar_m_query);
         exit(EXIT_FAILURE);
-    } else if (wieksza == NULL) {
-        fprintf(stderr, "Nie znaleziono wiersza z wieksza masa barionowa niz: %f\n", m_bar_szukana);
+    } else if (bigger == NULL) {
+        fprintf(stderr, "Nie znaleziono wiersza z wieksza masa barionowa niz: %f\n", bar_m_query);
         exit(EXIT_FAILURE);
     }
 
-    ParaWierszy *paraWierszy = malloc(sizeof(ParaWierszy));
-    paraWierszy->mniejszy = mniejsza;
-    paraWierszy->wiekszy = wieksza;
-    paraWierszy->m_bar_szukana = m_bar_szukana;
+    DataLinePair *linePair = malloc(sizeof(DataLinePair));
+    linePair->smaller = smaller;
+    linePair->bigger = bigger;
+    linePair->bar_m_queried = bar_m_query;
 
-    return paraWierszy;
+    return linePair;
 }
 
 double liniowaZaleznosc(double desirable_y, double min_y, double max_y, double min_x, double max_x) {
@@ -151,14 +172,14 @@ double liniowaZaleznosc(double desirable_y, double min_y, double max_y, double m
     return solution;
 }
 
-WierszNode *wyliczWierszLiniowo(ParaWierszy *paraWierszy) {
-    WierszNode *wyliczony = malloc(sizeof(WierszNode));
-    WierszNode *mniejszy = paraWierszy->mniejszy;
-    WierszNode *wiekszy = paraWierszy->wiekszy;
+DataLineNode *wyliczWierszLiniowo(DataLinePair *paraWierszy) {
+    DataLineNode *wyliczony = malloc(sizeof(DataLineNode));
+    DataLineNode *mniejszy = paraWierszy->smaller;
+    DataLineNode *wiekszy = paraWierszy->bigger;
 
     wyliczony->next = NULL;
     wyliczony->generated = 1;
-    wyliczony->m_barionowa = paraWierszy->m_bar_szukana;
+    wyliczony->m_barionowa = paraWierszy->bar_m_queried;
     wyliczony->m_grawitacyjna = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
                                                  mniejszy->m_grawitacyjna, wiekszy->m_grawitacyjna);
     wyliczony->m_pedu = liniowaZaleznosc(wyliczony->m_barionowa, mniejszy->m_barionowa, wiekszy->m_barionowa,
@@ -185,20 +206,20 @@ WierszNode *wyliczWierszLiniowo(ParaWierszy *paraWierszy) {
     return wyliczony;
 }
 
-WierszNode *findEquivalent(WierszNode **head_ref, double m_bar_szukana) {
-    ParaWierszy *paraWierszy = znajdzNajblizszaPare(head_ref, m_bar_szukana);
+DataLineNode *findEquivalent(DataLineNode **head_ref, double m_bar_szukana) {
+    DataLinePair *paraWierszy = findClosestPair(head_ref, m_bar_szukana);
     return wyliczWierszLiniowo(paraWierszy);
 }
 
-WierszNode *findAnswer(WierszNode **head_ref, double m_bar_szukana) {
-    WierszNode *ans = findByMBar(head_ref, m_bar_szukana);
+DataLineNode *findAnswer(DataLineNode **head_ref, double m_bar_szukana) {
+    DataLineNode *ans = findByBaryonMass(head_ref, m_bar_szukana);
     if (ans != NULL) return ans;
     return findEquivalent(head_ref, m_bar_szukana);
 }
 
 /** Wczytywanie pliku */
-void parseLine(const char *src, WierszNode **head_ref) {
-    char *bufor[BUFOR_LINI];
+void parseLine(const char *src, DataLineNode **head_ref) {
+    char *bufor[LINE_BUFFER];
     char *line = malloc(strlen(src) + 1);
     strcpy(line, src);
 
@@ -251,13 +272,13 @@ void parseLine(const char *src, WierszNode **head_ref) {
     ptr = strtok(NULL, ",");
     s_e = atof(ptr);
 
-    appendWiersz(head_ref, m_barionowa, m_grawitacyjna, m_pedu, R, omega, P, Ro_B, N_B, entalpia, r_eq, s_r, s_e);
+    appendLine(head_ref, m_barionowa, m_grawitacyjna, m_pedu, R, omega, P, Ro_B, N_B, entalpia, r_eq, s_r, s_e);
 }
 
-WierszNode *loadData(const char *fileName) {
+DataLineNode *loadData(const char *fileName) {
     FILE *fp;
-    char line[BUFOR_LINI];
-    WierszNode *dataList = NULL;
+    char line[LINE_BUFFER];
+    DataLineNode *dataList = NULL;
 
     fp = fopen(fileName, "r");
     if (fp == NULL) {
@@ -274,7 +295,7 @@ WierszNode *loadData(const char *fileName) {
 }
 
 /** Wypisywanie poszukiwanych danych */
-void printCalculatedData(WierszNode *calcData) {
+void printCalculatedData(DataLineNode *calcData) {
     printf("%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n", calcData->m_barionowa,
            calcData->m_grawitacyjna, calcData->m_pedu, calcData->R, calcData->omega, calcData->P, calcData->Ro_B,
            calcData->N_B, calcData->entalpia, calcData->r_eq, calcData->s_r, calcData->s_e);
@@ -292,7 +313,7 @@ int main(int argc, char **argv) {
         fileName = argv[1];
     }
 
-    WierszNode *lista_wierszy = loadData(fileName);
+    DataLineNode *lista_wierszy = loadData(fileName);
 
     if (argc < 3) {
         printf("Podaj mase barionowa: ");
@@ -301,7 +322,7 @@ int main(int argc, char **argv) {
         m_barionowa = atof(argv[2]);
     }
 
-    WierszNode *answer = findAnswer(&lista_wierszy, m_barionowa);
+    DataLineNode *answer = findAnswer(&lista_wierszy, m_barionowa);
     printCalculatedData(answer);
 
     if (answer->generated == 1) free(answer);
