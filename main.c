@@ -23,7 +23,7 @@ typedef struct _data_line_node_s {
     double m_barionowa;
     double m_grawitacyjna;
     double m_pedu;
-    double R;               // promien chuja
+    double R;               // promien
     double omega;           // predkosc katowa
     double P;               // okres rotacji
     double Ro_B;            // centralna gestosc energii
